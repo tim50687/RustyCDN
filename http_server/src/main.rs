@@ -49,7 +49,6 @@ async fn serve_content(req: HttpRequest, state: web::Data<AppState>) -> impl Res
                 StatusCode::OK => {
                     let body_bytes = res.body().limit(20_000_000).await.expect("failed!!!");
                     let body = String::from_utf8_lossy(&body_bytes).to_string();
-
                     CACHE.lock().await.add(&content_path, &body);
                     HttpResponse::Ok().body(body)
                 }
