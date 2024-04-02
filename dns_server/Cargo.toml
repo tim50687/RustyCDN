@@ -7,3 +7,6 @@ edition = "2021"
 
 [dependencies]
 clap = "4.5.2"
+ipgeolocate = "0.3.5"
+tokio = { version = "1.0", features = ["full"] }
+geoutils = "0.5.1"
