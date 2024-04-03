@@ -13,7 +13,7 @@ use util::cl_parser::Cli;
 extern crate lazy_static;
 
 lazy_static! {
-    static ref CACHE: Arc<Mutex<CacheSystem>> = Arc::new(Mutex::new(CacheSystem::new(20_000_000)));
+    static ref CACHE: Arc<Mutex<CacheSystem>> = Arc::new(Mutex::new(CacheSystem::new(18_000_000)));
 }
 
 struct AppState {
@@ -59,6 +59,11 @@ async fn serve_content(req: HttpRequest, state: web::Data<AppState>) -> impl Res
     }
 }
 
+#[get("/grading/beacon")]
+async fn respond_beacon() -> impl Responder {
+    HttpResponse::NoContent()
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let cli = Cli::parse();
@@ -70,6 +75,7 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(app_state.clone())
+            .service(respond_beacon)
             .service(serve_content)
     })
     .keep_alive(Duration::from_secs(25))
