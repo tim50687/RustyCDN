@@ -13,10 +13,14 @@ async fn main() {
     println!("Port: {}", port);
     println!("CDN: {}", cdn);
 
-    // Get the geolocation of an IP address
-    let dns_server = DnsServer::new();
-    let ip = "1.1.1.1";
-    let ip2 = "128.0.9.1";
-    let distance = dns_server.get_distance_from_ip(ip, ip2).await;
-    println!("Distance between {} and {} is {} meters", ip, ip2, distance);
+    // test get sorted cdn servers
+    let mut dns_server = DnsServer::new();
+    // generate fake cdn servers in cdn_server: HashMap::new()
+    dns_server.cdn_server.insert("132.21.2.3".to_string(), true);
+    dns_server.cdn_server.insert("113.20.2.3".to_string(), true);
+    dns_server.cdn_server.insert("109.21.1.3".to_string(), true);
+    println!("CDN servers: {:?}", dns_server.cdn_server);
+    let client_ip = "1.1.1.1";
+    let cdn_servers = dns_server.get_sorted_cdn_servers(client_ip).await;
+    println!("CDN servers sorted by distance: {:?}", cdn_servers);
 }
