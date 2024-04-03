@@ -12,7 +12,7 @@ impl DnsServer {
     // This function is used to create a new instance of the DnsServer struct
     pub fn new() -> Self {
         DnsServer {
-            port: String::from("53"),
+            port: String::from("20310"),
             cdn_server: HashMap::new(),
         }
     }

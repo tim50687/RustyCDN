@@ -6,12 +6,12 @@ pub fn parse_arguments() -> clap::ArgMatches {
         arg(
             Arg::new("port")
                 .short('p')
-                .default_value("53")
+                .default_value("20310")
         )
         .arg(
             Arg::new("cdn")
                 .short('n')
-                .default_value("cs5700cdnproject.ccs.neu.edu")
+                .default_value("cdn-dns.khoury.northeastern.edu")
         )
         .get_matches();
 
