@@ -16,11 +16,16 @@ async fn main() {
     // test get sorted cdn servers
     let mut dns_server = DnsServer::new();
     // generate fake cdn servers in cdn_server: HashMap::new()
-    dns_server.cdn_server.insert("132.21.2.3".to_string(), true);
-    dns_server.cdn_server.insert("113.20.2.3".to_string(), true);
-    dns_server.cdn_server.insert("109.21.1.3".to_string(), true);
+    dns_server.cdn_server.insert("132.21.2.3".to_string(), false);
+    dns_server.cdn_server.insert("113.20.2.3".to_string(), false);
+    dns_server.cdn_server.insert("109.21.1.3".to_string(), false);
     println!("CDN servers: {:?}", dns_server.cdn_server);
     let client_ip = "1.1.1.1";
     let cdn_servers = dns_server.get_sorted_cdn_servers(client_ip).await;
     println!("CDN servers sorted by distance: {:?}", cdn_servers);
+
+    // test get closest cdn server with availability
+    let closest_cdn_server = dns_server.get_closest_cdn_server_with_availability(cdn_servers).await;
+
+    println!("Closest CDN server: {}", closest_cdn_server);
 }

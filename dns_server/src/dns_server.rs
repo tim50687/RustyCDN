@@ -55,5 +55,15 @@ impl DnsServer {
         cdn_servers
     }
 
+    // Given ascending sorted list of distance from the client to the CDN servers and the availability of the CDN servers,
+    // this function returns the closest CDN server
+    pub async fn get_closest_cdn_server_with_availability(&self, cdn_servers: Vec<(f64, String)>) -> String {
+        for (distance, cdn_ip) in cdn_servers {
+            if *self.cdn_server.get(&cdn_ip).unwrap() {
+                return cdn_ip;
+            }
+        }
+        String::from("No CDN server available")
+    }
     
 }
