@@ -11,10 +11,20 @@ pub struct DnsServer {
 impl DnsServer {
     // This function is used to create a new instance of the DnsServer struct
     pub fn new() -> Self {
-        DnsServer {
+        let mut dns_server = DnsServer {
             port: String::from("20310"),
             cdn_server: HashMap::new(),
-        }
+        };
+        // Save all the ip addresses of the CDN servers
+        dns_server.cdn_server.insert("45.33.55.171".to_string(), false); // cdn-http3.khoury.northeastern.edu
+        dns_server.cdn_server.insert("170.187.142.220".to_string(), false); // cdn-http4.khoury.northeastern.edu
+        dns_server.cdn_server.insert("213.168.249.157".to_string(), false); // cdn-http7.khoury.northeastern.edu
+        dns_server.cdn_server.insert("139.162.82.207".to_string(), false); // cdn-http11.khoury.northeastern.edu
+        dns_server.cdn_server.insert("45.79.124.209".to_string(), false); // cdn-http14.khoury.northeastern.edu
+        dns_server.cdn_server.insert("192.53.123.145".to_string(), false); // cdn-http15.khoury.northeastern.edu
+        dns_server.cdn_server.insert("192.46.221.203".to_string(), false); // cdn-http16.khoury.northeastern.edu
+
+        dns_server
     }
     // This function is used to get the geolocation of an IP address
     pub async fn get_geolocation(&self,ip: &str) -> Result<Locator, GeoError>{
