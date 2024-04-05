@@ -11,7 +11,7 @@ pub fn parse_arguments() -> clap::ArgMatches {
         .arg(
             Arg::new("cdn")
                 .short('n')
-                .default_value("cdn-dns.khoury.northeastern.edu")
+                .default_value("cs5700cdn.example.com")
         )
         .get_matches();
 

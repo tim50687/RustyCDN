@@ -16,6 +16,6 @@ async fn main() {
     // test get sorted cdn servers
     let mut dns_server = DnsServer::new(&port);
     // generate fake cdn servers in cdn_server: HashMap::new()
-    println!("CDN servers: {:?}", dns_server.socket);
+    // println!("CDN servers: {:?}", dns_server.socket);
     dns_server.start().await;
 }

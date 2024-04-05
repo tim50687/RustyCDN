@@ -95,8 +95,9 @@ impl DnsServer {
     
             // Read the message from the udp socket
             let (client_address, dns_question) = self.get_question_domain_name();
-            // Remove port number from the source address
+            // String of client address, for sending response
             let client_address_str = client_address.to_string();
+            // Remove port number from the source address
             let client_ip = client_address_str.split(":").collect::<Vec<&str>>()[0];
             // for testing
             let client_ip = "8.8.8.8"; 
@@ -133,6 +134,7 @@ impl DnsServer {
         let dns = Dns::decode(bytes).unwrap();
         // Get the domain name of the dns question
         // let domain_name = &dns.questions[0].domain_name.to_string();
+        // println!("domain_name: {:?}", domain_name);
         // // Read until second to the last character to remove the last dot
         // let domain_name = &domain_name[..domain_name.len() - 1];
         // println!("Received request for domain: {:?}", dns);
