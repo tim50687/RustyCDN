@@ -8,8 +8,8 @@ use dns_message_parser::question::{QClass, QType, Question};
 use dns_message_parser::rr::{A, RR};
 use std::net::Ipv4Addr;
 pub struct DnsServer {
-    client_ip: String,
-    dns_port: String,
+    // client_ip: String,
+    // dns_port: String,
     // Hashmap to store the CDN IP address and information
     cdn_server: HashMap<String, CdnServerInfo>,
     // Number of available CDN servers
@@ -28,11 +28,11 @@ impl DnsServer {
     // This function is used to create a new instance of the DnsServer struct
     pub fn new(port: &str) -> Self {
         let dns_server = DnsServer {
-            client_ip: format!("127.0.0.1:{port}"),
-            dns_port: port.to_string(),
+            // client_ip: format!("127.0.0.1:{port}"),
+            // dns_port: port.to_string(),
             cdn_server: HashMap::new(),
             available_cdn_count: 7,
-            socket: UdpSocket::bind(format!("127.0.0.1:{port}")).unwrap(),
+            socket: UdpSocket::bind(format!("0.0.0.0:{port}")).unwrap(), // bind to 0.0.0.0 so that it can listen on all available ip addresses on the machine
         };
         dns_server
     }
@@ -100,7 +100,8 @@ impl DnsServer {
             // Remove port number from the source address
             let client_ip = client_address_str.split(":").collect::<Vec<&str>>()[0];
             // for testing
-            let client_ip = "8.8.8.8"; 
+            // let client_ip = "8.8.8.8"; 
+            println!("Received request from: {:?}", client_address_str);
     
             // Get the sorted list of CDN servers based on the distance from the client
             let sorted_cdn_servers = self.get_sorted_cdn_servers(&client_ip).await;
