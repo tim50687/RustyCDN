@@ -10,11 +10,12 @@ use std::net::Ipv4Addr;
 pub struct DnsServer {
     client_ip: String,
     dns_port: String,
-    // hashmap to store the CDN IP address and information
+    // Hashmap to store the CDN IP address and information
     cdn_server: HashMap<String, CdnServerInfo>,
+    // Number of available CDN servers
     available_cdn_count : i32,
     // UDP socket
-    pub socket: UdpSocket,
+    socket: UdpSocket,
 }
 
 struct CdnServerInfo {
@@ -87,7 +88,7 @@ impl DnsServer {
             // If already send all the IP once -> set all to false
             if (self.available_cdn_count == 0) {
                 for (cdn_ip, cdn_info) in self.cdn_server.iter_mut() {
-                    cdn_info.available = false;
+                    cdn_info.available = true;
                 }
                 self.available_cdn_count = 7;
             }
@@ -111,6 +112,7 @@ impl DnsServer {
                     closest_cdn_server = cdn_ip;
                     // Set the CDN server to unavailable
                     self.cdn_server.get_mut(cdn_ip).unwrap().available = false;
+                    self.available_cdn_count -= 1;
                     break;
                 }
             }
@@ -152,10 +154,7 @@ impl DnsServer {
     }
     
     // This function is used to get the distance between two IP addresses
-    async fn get_distance_from_ip(&self, ip: &str, target_ip: &str) -> f64 {
-        let locator = self.get_geolocation(ip).await.unwrap();
-        let target_locator = self.get_geolocation(target_ip).await.unwrap();
-
+    async fn get_distance_from_ip(&self, locator: &Locator, target_locator: &Locator) -> f64 {
         // Calculate the distance between the two IP addresses
         let locator = Location::new(locator.latitude.parse::<f64>().unwrap(), locator.longitude.parse::<f64>().unwrap());
         let target_locator = Location::new(target_locator.latitude.parse::<f64>().unwrap(), target_locator.longitude.parse::<f64>().unwrap());
@@ -167,9 +166,11 @@ impl DnsServer {
     // This function gets a sorted list of distance from the client to the CDN servers in ascending order
     async fn get_sorted_cdn_servers(&self, client_ip: &str) -> Vec<(f64, String)> {
         let mut cdn_servers = vec![];
+        // Get client ip geolocation
+        let client_ip_geolocation = self.get_geolocation(client_ip).await.unwrap();
         // Get the distance from the client to each CDN server
         for (cdn_ip, _) in self.cdn_server.iter() {
-            let distance = self.get_distance_from_ip(client_ip, cdn_ip).await;
+            let distance = self.get_distance_from_ip(&client_ip_geolocation, &self.cdn_server.get(cdn_ip).unwrap().geolocation).await;
             cdn_servers.push((distance, cdn_ip.to_string()));
         }
         cdn_servers.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
