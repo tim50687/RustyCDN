@@ -10,53 +10,84 @@ use std::net::Ipv4Addr;
 pub struct DnsServer {
     client_ip: String,
     dns_port: String,
-    // hashmap to store the CDN IP address and availability
-    pub cdn_server: HashMap<String, bool>,
-    cdn_ip_domain_map: HashMap<String, String>,
+    // hashmap to store the CDN IP address and information
+    cdn_server: HashMap<String, CdnServerInfo>,
     available_cdn_count : i32,
     // UDP socket
     pub socket: UdpSocket,
 }
 
+struct CdnServerInfo {
+    available: bool,
+    domain_name: String,
+    geolocation: Locator,
+}
+
 impl DnsServer {
     // This function is used to create a new instance of the DnsServer struct
     pub fn new(port: &str) -> Self {
-        let mut dns_server = DnsServer {
+        let dns_server = DnsServer {
             client_ip: format!("127.0.0.1:{port}"),
             dns_port: port.to_string(),
             cdn_server: HashMap::new(),
-            cdn_ip_domain_map: HashMap::new(),
             available_cdn_count: 7,
             socket: UdpSocket::bind(format!("127.0.0.1:{port}")).unwrap(),
         };
-        // Save all the ip addresses of the CDN servers
-        dns_server.cdn_server.insert("45.33.55.171".to_string(), true); // cdn-http3.khoury.northeastern.edu
-        dns_server.cdn_server.insert("170.187.142.220".to_string(), true); // cdn-http4.khoury.northeastern.edu
-        dns_server.cdn_server.insert("213.168.249.157".to_string(), true); // cdn-http7.khoury.northeastern.edu
-        dns_server.cdn_server.insert("139.162.82.207".to_string(), true); // cdn-http11.khoury.northeastern.edu
-        dns_server.cdn_server.insert("45.79.124.209".to_string(), true); // cdn-http14.khoury.northeastern.edu
-        dns_server.cdn_server.insert("192.53.123.145".to_string(), true); // cdn-http15.khoury.northeastern.edu
-        dns_server.cdn_server.insert("192.46.221.203".to_string(), true); // cdn-http16.khoury.northeastern.edu
-
-        // Save the domain name of the CDN servers
-        dns_server.cdn_ip_domain_map.insert("45.33.55.171".to_string(), "cdn-http3.khoury.northeastern.edu".to_string()); 
-        dns_server.cdn_ip_domain_map.insert("170.187.142.220".to_string(), "cdn-http4.khoury.northeastern.edu".to_string()); 
-        dns_server.cdn_ip_domain_map.insert("213.168.249.157".to_string(), "cdn-http7.khoury.northeastern.edu".to_string()); 
-        dns_server.cdn_ip_domain_map.insert("139.162.82.207".to_string(), "cdn-http11.khoury.northeastern.edu".to_string()); 
-        dns_server.cdn_ip_domain_map.insert("45.79.124.209".to_string(), "cdn-http14.khoury.northeastern.edu".to_string()); 
-        dns_server.cdn_ip_domain_map.insert("192.53.123.145".to_string(), "cdn-http15.khoury.northeastern.edu".to_string()); 
-        dns_server.cdn_ip_domain_map.insert("192.46.221.203".to_string(), "cdn-http16.khoury.northeastern.edu".to_string()); 
         dns_server
+    }
+
+    // This function is used to init a CDN server information to the cdn_server hashmap
+    pub async fn init_cdn_geolocation(&mut self) {
+        // Save all the ip addresses of the CDN servers
+        self.cdn_server.insert("45.33.55.171".to_string(), CdnServerInfo {
+            available: true,
+            domain_name: "cdn-http3.khoury.northeastern.edu".to_string(),
+            geolocation: self.get_geolocation("45.33.55.171").await.unwrap(),
+        }); // cdn-http3.khoury.northeastern.edu
+        self.cdn_server.insert("170.187.142.220".to_string(), CdnServerInfo {
+            available: true,
+            domain_name: "cdn-http4.khoury.northeastern.edu".to_string(),
+            geolocation: self.get_geolocation("170.187.142.220").await.unwrap(),
+        }); // cdn-http4.khoury.northeastern.edu
+        self.cdn_server.insert("213.168.249.157".to_string(), CdnServerInfo {
+            available: true,
+            domain_name: "cdn-http7.khoury.northeastern.edu".to_string(),
+            geolocation: self.get_geolocation("213.168.249.157").await.unwrap(),
+        }); // cdn-http7.khoury.northeastern.edu
+        self.cdn_server.insert("139.162.82.207".to_string(), CdnServerInfo {
+            available: true,
+            domain_name: "cdn-http11.khoury.northeastern.edu".to_string(),
+            geolocation: self.get_geolocation("139.162.82.207").await.unwrap(),
+        }); // cdn-http11.khoury.northeastern.edu
+        self.cdn_server.insert("45.79.124.209".to_string(), CdnServerInfo {
+            available: true,
+            domain_name: "cdn-http14.khoury.northeastern.edu".to_string(),
+            geolocation: self.get_geolocation("45.79.124.209").await.unwrap(),
+        }); // cdn-http14.khoury.northeastern.edu
+        self.cdn_server.insert("192.53.123.145".to_string(), CdnServerInfo {
+            available: true,
+            domain_name: "cdn-http15.khoury.northeastern.edu".to_string(),
+            geolocation: self.get_geolocation("192.53.123.145").await.unwrap(),
+        }); // cdn-http15.khoury.northeastern.edu
+        self.cdn_server.insert("192.46.221.203".to_string(), CdnServerInfo {
+            available: true,
+            domain_name: "cdn-http16.khoury.northeastern.edu".to_string(),
+            geolocation: self.get_geolocation("192.46.221.203").await.unwrap(),
+        
+        }); // cdn-http16.khoury.northeastern.edu
     }
 
     // This function will start the DNS server
     pub async fn start(&mut self) {
 
+        // get the geo location of the CDN servers
+        self.init_cdn_geolocation().await;
+
         loop {
             // If already send all the IP once -> set all to false
             if (self.available_cdn_count == 0) {
-                for (cdn_ip, used) in self.cdn_server.iter_mut() {
-                    *used = false;
+                for (cdn_ip, cdn_info) in self.cdn_server.iter_mut() {
+                    cdn_info.available = false;
                 }
                 self.available_cdn_count = 7;
             }
@@ -75,11 +106,11 @@ impl DnsServer {
             // Get the closest CDN server that is available
             let mut closest_cdn_server = "";
             for (distance, cdn_ip) in &sorted_cdn_servers {
-                if (*self.cdn_server.get(cdn_ip).unwrap()) {
+                if (self.cdn_server.get(cdn_ip).unwrap().available) {
                     // Get the closest CDN server that is available
                     closest_cdn_server = cdn_ip;
                     // Set the CDN server to unavailable
-                    *self.cdn_server.get_mut(cdn_ip).unwrap() = false;
+                    self.cdn_server.get_mut(cdn_ip).unwrap().available = false;
                     break;
                 }
             }
@@ -165,7 +196,7 @@ impl DnsServer {
         let authorities = vec![];
         let additionals = vec![];
         // Add the CDN server IP address to the answer
-        let domain_name = self.cdn_ip_domain_map.get(closest_cdn_server).unwrap().to_string().parse().unwrap();
+        let domain_name = self.cdn_server.get(closest_cdn_server).unwrap().domain_name.to_string().parse().unwrap();
         let mut answer = Vec::new();
         // Turn string into ipv4 address
         let ip_vec = closest_cdn_server.split(".").map(|x| x.parse::<u8>().unwrap()).collect::<Vec<u8>>();
