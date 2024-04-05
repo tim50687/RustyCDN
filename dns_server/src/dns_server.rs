@@ -52,46 +52,42 @@ impl DnsServer {
     // This function will start the DNS server
     pub async fn start(&mut self) {
 
-        // If already send all the IP once -> set all to false
-        if (self.available_cdn_count == 0) {
-            for (cdn_ip, used) in self.cdn_server.iter_mut() {
-                *used = false;
+        loop {
+            // If already send all the IP once -> set all to false
+            if (self.available_cdn_count == 0) {
+                for (cdn_ip, used) in self.cdn_server.iter_mut() {
+                    *used = false;
+                }
+                self.available_cdn_count = 7;
             }
-            self.available_cdn_count = 7;
-        }
-
-
-        // Read the message from the udp socket
-        let (client_address, dns_question) = self.get_question_domain_name();
-        // Remove port number from the source address
-        let client_address_str = client_address.to_string();
-        let client_ip = client_address_str.split(":").collect::<Vec<&str>>()[0];
-        let client_ip = "12.14.1.5"; // for testing
-
-        // Get the sorted list of CDN servers based on the distance from the client
-        let sorted_cdn_servers = self.get_sorted_cdn_servers(&client_ip).await;
-        // println!("CDN servers: {:?}", sorted_cdn_servers);
-
-        // Get the closest CDN server that is available
-        let mut closest_cdn_server = "";
-        for (distance, cdn_ip) in &sorted_cdn_servers {
-            if (*self.cdn_server.get(cdn_ip).unwrap()) {
-                // Get the closest CDN server that is available
-                closest_cdn_server = cdn_ip;
-                // Set the CDN server to unavailable
-                *self.cdn_server.get_mut(cdn_ip).unwrap() = false;
-                break;
+    
+            // Read the message from the udp socket
+            let (client_address, dns_question) = self.get_question_domain_name();
+            // Remove port number from the source address
+            let client_address_str = client_address.to_string();
+            let client_ip = client_address_str.split(":").collect::<Vec<&str>>()[0];
+            // for testing
+            let client_ip = "8.8.8.8"; 
+    
+            // Get the sorted list of CDN servers based on the distance from the client
+            let sorted_cdn_servers = self.get_sorted_cdn_servers(&client_ip).await;
+    
+            // Get the closest CDN server that is available
+            let mut closest_cdn_server = "";
+            for (distance, cdn_ip) in &sorted_cdn_servers {
+                if (*self.cdn_server.get(cdn_ip).unwrap()) {
+                    // Get the closest CDN server that is available
+                    closest_cdn_server = cdn_ip;
+                    // Set the CDN server to unavailable
+                    *self.cdn_server.get_mut(cdn_ip).unwrap() = false;
+                    break;
+                }
             }
+            
+            let ans = self.generate_response(&dns_question, closest_cdn_server);
+            // Send the response to the client
+            self.socket.send_to(&ans, &client_address).unwrap();
         }
-        // println!("Closest CDN server: {:?}", closest_cdn_server);
-        // println!("cdn server {:?}", self.cdn_server);
-        // Send the response to the client
-        // println!("question: {:?}", dns_question);
-        // Get the response
-        let ans = self.generate_response(&dns_question, closest_cdn_server);
-        // Send the response to the client
-        println!("client ip: {:?}", self.client_ip);
-        self.socket.send_to(&ans, &client_address).unwrap();
     }
 
     // This function will read from the request and get the dns question and src ip
@@ -106,16 +102,17 @@ impl DnsServer {
         // let domain_name = &dns.questions[0].domain_name.to_string();
         // // Read until second to the last character to remove the last dot
         // let domain_name = &domain_name[..domain_name.len() - 1];
-        println!("Received request for domain: {:?}", dns);
-        println!("Received request from: {:?}", src);
+        // println!("Received request for domain: {:?}", dns);
+        // println!("Received request from: {:?}", src);
         
         // println!("Received request from: {:?}", src);
         (src.to_string(), dns)
     }
 
     // This function is used to get the geolocation of an IP address
-    pub async fn get_geolocation(&self,ip: &str) -> Result<Locator, GeoError>{
+    async fn get_geolocation(&self,ip: &str) -> Result<Locator, GeoError>{
         let service = Service::IpApi;
+
         let locator = match Locator::get(ip, service).await {
             Ok(locator) => locator,
             Err(error) => return Err(error),
@@ -124,9 +121,10 @@ impl DnsServer {
     }
     
     // This function is used to get the distance between two IP addresses
-    pub async fn get_distance_from_ip(&self, ip: &str, target_ip: &str) -> f64 {
+    async fn get_distance_from_ip(&self, ip: &str, target_ip: &str) -> f64 {
         let locator = self.get_geolocation(ip).await.unwrap();
         let target_locator = self.get_geolocation(target_ip).await.unwrap();
+
         // Calculate the distance between the two IP addresses
         let locator = Location::new(locator.latitude.parse::<f64>().unwrap(), locator.longitude.parse::<f64>().unwrap());
         let target_locator = Location::new(target_locator.latitude.parse::<f64>().unwrap(), target_locator.longitude.parse::<f64>().unwrap());
@@ -136,7 +134,7 @@ impl DnsServer {
     }
 
     // This function gets a sorted list of distance from the client to the CDN servers in ascending order
-    pub async fn get_sorted_cdn_servers(&self, client_ip: &str) -> Vec<(f64, String)> {
+    async fn get_sorted_cdn_servers(&self, client_ip: &str) -> Vec<(f64, String)> {
         let mut cdn_servers = vec![];
         // Get the distance from the client to each CDN server
         for (cdn_ip, _) in self.cdn_server.iter() {
@@ -168,8 +166,6 @@ impl DnsServer {
         let additionals = vec![];
         // Add the CDN server IP address to the answer
         let domain_name = self.cdn_ip_domain_map.get(closest_cdn_server).unwrap().to_string().parse().unwrap();
-        // let qtype = QType::A;
-        // let qclass = QClass::IN;
         let mut answer = Vec::new();
         // Turn string into ipv4 address
         let ip_vec = closest_cdn_server.split(".").map(|x| x.parse::<u8>().unwrap()).collect::<Vec<u8>>();
@@ -184,12 +180,10 @@ impl DnsServer {
             authorities,
             additionals,
         };
-
-        println!("DNS response: {:?}", dns_response);
         
         // Encode the DNS response
         let response = dns_response.encode().unwrap();
-        // Send the response to the client
+
         response
     }
 
