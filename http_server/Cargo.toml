@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-openssl = "0.10.38"
+openssl = { version = "0.10.38", features = [ "vendored" ] }
 actix-web = "4.5.1"
 awc = { version = "3.0.0-beta.11", features = [ "openssl" ] }
 lazy_static = "=1.4.0"

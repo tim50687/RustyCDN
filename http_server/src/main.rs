@@ -13,7 +13,7 @@ use util::cl_parser::Cli;
 extern crate lazy_static;
 
 lazy_static! {
-    static ref CACHE: Arc<Mutex<CacheSystem>> = Arc::new(Mutex::new(CacheSystem::new(20_000_000)));
+    static ref CACHE: Arc<Mutex<CacheSystem>> = Arc::new(Mutex::new(CacheSystem::new(18_000_000)));
 }
 
 struct AppState {
@@ -49,7 +49,6 @@ async fn serve_content(req: HttpRequest, state: web::Data<AppState>) -> impl Res
                 StatusCode::OK => {
                     let body_bytes = res.body().limit(20_000_000).await.expect("failed!!!");
                     let body = String::from_utf8_lossy(&body_bytes).to_string();
-
                     CACHE.lock().await.add(&content_path, &body);
                     HttpResponse::Ok().body(body)
                 }
@@ -58,6 +57,11 @@ async fn serve_content(req: HttpRequest, state: web::Data<AppState>) -> impl Res
             Err(_) => HttpResponse::NotFound().body(""),
         }
     }
+}
+
+#[get("/grading/beacon")]
+async fn respond_beacon() -> impl Responder {
+    HttpResponse::NoContent()
 }
 
 #[actix_web::main]
@@ -71,10 +75,11 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(app_state.clone())
+            .service(respond_beacon)
             .service(serve_content)
     })
     .keep_alive(Duration::from_secs(25))
-    .bind(("127.0.0.1", cli.port))?
+    .bind(("0.0.0.0", cli.port))?
     .run()
     .await
 }
