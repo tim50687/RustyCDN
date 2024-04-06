@@ -24,4 +24,7 @@ with open('httpservers.txt', 'r') as r_file:
         process.communicate('mkdir app')
         subprocess.run(['scp', '-i', args.keyfile, './httpserver', f'{args.username}@{domain}:app/httpserver'])
 
-
+# For DNS server
+process = subprocess.Popen(['ssh', '-i', './keys/ssh-ed25519-lee.chih-.priv', f'{args.username}@cdn-dns.khoury.northeastern.edu'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+process.communicate('mkdir app')
+subprocess.run(['scp', '-i', args.keyfile, './dnsserver', f'{args.username}@cdn-dns.khoury.northeastern.edu:app/dnsserver'])

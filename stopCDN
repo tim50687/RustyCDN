@@ -19,3 +19,7 @@ with open('httpservers.txt', 'r') as r_file:
         domain = line.split()[0]
         process = subprocess.Popen(['ssh', '-i', args.keyfile, f'{args.username}@{domain}'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
         process.communicate('screen -ls | grep \'(Detached)\' | awk \'{print $1}\' | xargs -I % -t screen -X -S % quit')
+
+
+process = subprocess.Popen(['ssh', '-i', './keys/ssh-ed25519-lee.chih-.priv', f'{args.username}@cdn-dns.khoury.northeastern.edu'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+process.communicate('screen -ls | grep \'(Detached)\' | awk \'{print $1}\' | xargs -I % -t screen -X -S % quit')
