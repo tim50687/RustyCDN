@@ -79,7 +79,7 @@ async fn main() -> std::io::Result<()> {
             .service(serve_content)
     })
     .keep_alive(Duration::from_secs(25))
-    .bind(("127.0.0.1", cli.port))?
+    .bind(("0.0.0.0", cli.port))?
     .run()
     .await
 }
