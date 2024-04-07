@@ -135,4 +135,8 @@ impl CacheSystem {
             false
         }
     }
+
+    pub fn get_cache(&self) -> Vec<String> {
+        self.cache.keys().cloned().collect()
+    }
 }

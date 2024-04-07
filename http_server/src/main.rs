@@ -59,6 +59,13 @@ async fn serve_content(req: HttpRequest, state: web::Data<AppState>) -> impl Res
     }
 }
 
+#[get("/api/getCache")]
+async fn get_cache() -> impl Responder {
+    let cur_cache = CACHE.lock().await.get_cache().join(" ");
+
+    HttpResponse::Ok().body(cur_cache)
+}
+
 #[get("/grading/beacon")]
 async fn respond_beacon() -> impl Responder {
     HttpResponse::NoContent()
@@ -68,8 +75,6 @@ async fn respond_beacon() -> impl Responder {
 async fn main() -> std::io::Result<()> {
     let cli = Cli::parse();
 
-    dbg!(&cli);
-
     let app_state = web::Data::new(AppState { origin: cli.origin });
 
     HttpServer::new(move || {
@@ -77,6 +82,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(app_state.clone())
             .service(respond_beacon)
             .service(serve_content)
+            .service(get_cache)
     })
     .keep_alive(Duration::from_secs(25))
     .bind(("0.0.0.0", cli.port))?
