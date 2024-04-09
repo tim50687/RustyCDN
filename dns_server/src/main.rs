@@ -17,5 +17,6 @@ async fn main() {
     let mut dns_server = DnsServer::new(&port);
     // generate fake cdn servers in cdn_server: HashMap::new()
     // println!("CDN servers: {:?}", dns_server.socket);
+    // dbg!(DnsServer::get_cache("cdn-http3.khoury.northeastern.edu", "20131").await);
     dns_server.start().await;
 }

@@ -1,1 +1,24 @@
-# RustyCDN
+# Project 6: RustyCDN
+
+## Project Summary
+
+We developed a Content Delivery Network (CDN) called RustyCDN to speed up website loading times using globally distributed servers. Our project focuses on three key tasks: guiding users to the nearest server, efficiently handling web content requests, and choosing the best server for each user.
+
+## High-Level Approach
+
+- **DNS Redirection:** Our custom DNS server smartly directs users to the fastest server available.
+- **Web Server and Caching:** Our web server processes content requests quickly, either by fetching fresh content from the main site or delivering it from a local cache.
+- **Server Selection Logic:** We've crafted logic that takes into account server load and geolocation to select the most suitable server for each request.
+
+## Challenges
+
+- **DNS Server Development:** Building a DNS server that accurately responds and redirects users was a complex task, especially when managing a high volume of requests.
+- **Cache Management:** Strategically deciding which content to store in the limited cache space required careful planning.
+- **Optimal Server Selection:** Determining the best server based on changing conditions like network status and server load was a challenging process.
+
+## How It's Made
+
+- **DNS Server (`dnsserver`):** Points queries to the best server. We calculate the distance using geolocation, sort servers by proximity, and then apply round-robin distribution to balance the load. A thread pool is used to handle numerous requests.
+- **HTTP Server (`httpserver`):** For caching, we employ two hash maps to track seen content and its request frequency. We also use `gzip` compression to allow more content to fit in the cache.
+  
+- **Deployment and Management Scripts:** Due to difficulties compiling our Rust code on remote servers, we compile locally, then transfer and run the compiled code on the remote servers.

@@ -3,11 +3,13 @@ mod util;
 use actix_web::{get, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use awc::http::StatusCode;
 use clap::Parser;
-use std::sync::Arc;
+use std::{sync::Arc, thread::sleep};
 use std::time::Duration;
 use tokio::sync::Mutex;
 use util::cache_system::CacheSystem;
 use util::cl_parser::Cli;
+use std::thread;
+use sysinfo::System;
 
 #[macro_use]
 extern crate lazy_static;
@@ -59,6 +61,29 @@ async fn serve_content(req: HttpRequest, state: web::Data<AppState>) -> impl Res
     }
 }
 
+#[get("/api/getUsage")]
+async fn get_usage() -> impl Responder {
+    // let mut cur_cache = CACHE.lock().await.get_cache().join(" ");
+
+    let mut sys = System::new();
+    sys.refresh_cpu();
+
+    std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL);
+
+    sys.refresh_cpu();
+
+    let mut usage = 0_f32;
+    let mut cnt = 0_f32;
+    for cpu in sys.cpus() {
+        usage += cpu.cpu_usage();
+        cnt += 1_f32;
+    }
+
+    usage = usage / cnt;
+
+    HttpResponse::Ok().body(format!("{}", usage))
+}
+
 #[get("/grading/beacon")]
 async fn respond_beacon() -> impl Responder {
     HttpResponse::NoContent()
@@ -68,8 +93,6 @@ async fn respond_beacon() -> impl Responder {
 async fn main() -> std::io::Result<()> {
     let cli = Cli::parse();
 
-    dbg!(&cli);
-
     let app_state = web::Data::new(AppState { origin: cli.origin });
 
     HttpServer::new(move || {
@@ -77,9 +100,11 @@ async fn main() -> std::io::Result<()> {
             .app_data(app_state.clone())
             .service(respond_beacon)
             .service(serve_content)
+            .service(get_usage)
     })
     .keep_alive(Duration::from_secs(25))
     .bind(("0.0.0.0", cli.port))?
+    .bind(("0.0.0.0", cli.port + 1))?
     .run()
     .await
 }
