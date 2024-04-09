@@ -14,7 +14,7 @@ pub struct DnsServer {
     cdn_server: HashMap<String, CdnServerInfo>,
     // UDP socket
     socket: UdpSocket,
-    cache: Arc<Mutex<HashMap<String, HashSet<String>>>>,
+    // cache: Arc<Mutex<HashMap<String, HashSet<String>>>>,
     cpu_usage: Arc<Mutex<HashMap<String, f32>>>,
     cdn_port: String,
     distance_to_origin: HashMap<String, f64>,
@@ -43,7 +43,7 @@ impl DnsServer {
         let dns_server = DnsServer {
             cdn_server: HashMap::new(),
             socket: UdpSocket::bind(format!("0.0.0.0:{port}")).unwrap(), // bind to 0.0.0.0 so that it can listen on all available ip addresses on the machine
-            cache: Arc::new(Mutex::new(HashMap::new())),
+            // cache: Arc::new(Mutex::new(HashMap::new())),
             cpu_usage: Arc::new(Mutex::new(HashMap::new())),
             cdn_port: port.to_string(),
             distance_to_origin: HashMap::new(),
@@ -142,7 +142,7 @@ impl DnsServer {
         self.init_cdn_geolocation().await;
 
         for (ip, cdn_server) in self.cdn_server.iter() {
-            let cache_ptr = Arc::clone(&self.cache);
+            // let cache_ptr = Arc::clone(&self.cache);
             let cpu_usage_ptr = Arc::clone(&self.cpu_usage);
             let port = self.cdn_port.clone();
             let domain = cdn_server.domain_name.clone();
@@ -151,23 +151,12 @@ impl DnsServer {
 
             tokio::spawn(async move {
                 loop {
-                    match DnsServer::get_cache(domain.clone(), port.clone()).await {
+                    match DnsServer::get_usage(domain.clone(), port.clone()).await {
                         Ok(res) => {
                             let mut availability = availability_ptr.lock().await;
                             let handle = availability.get_mut(&copy_ip).unwrap();
                             *handle = true;
                             drop(availability);
-
-                            let res_vec: Vec<&str> = res.split(" ").collect();
-                            let mut new_set: HashSet<String> = HashSet::new();
-
-                            for cache_content in res_vec[..res_vec.len() - 1].into_iter() {
-                                new_set.insert(cache_content.to_string());
-                            }
-
-                            let mut cache = cache_ptr.lock().await;
-                            cache.insert(copy_ip.clone(), new_set);
-                            drop(cache);
 
                             let mut cpu_usage = cpu_usage_ptr.lock().await;
                             let old_usage = match cpu_usage.get(&copy_ip) {
@@ -176,7 +165,7 @@ impl DnsServer {
                             };
                             cpu_usage.insert(
                                 copy_ip.clone(),
-                                match res_vec[res_vec.len() - 1].parse::<f32>() {
+                                match res.trim().parse::<f32>() {
                                     Ok(usage) => usage,
                                     Err(_) => old_usage,
                                 },
@@ -191,11 +180,11 @@ impl DnsServer {
                         }
                     }
 
-                    let test_usage = cache_ptr.lock().await;
+                    let test_usage = cpu_usage_ptr.lock().await;
 
-                    let test = test_usage.get(&copy_ip);
-                    dbg!(test, &domain);
+                    let test = *test_usage.get(&copy_ip).unwrap();
                     drop(test_usage);
+                    dbg!(test, &domain);
 
                     tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
                 }
@@ -225,22 +214,9 @@ impl DnsServer {
                 let mut closest_cdn_server: &str = sorted_cdn_servers[0].1.as_ref();
                 ans = self.generate_response(&dns_question, closest_cdn_server);
             }
-            // Get the closest CDN server that is available
-            // let mut closest_cdn_server = sorted_cdn_servers[0].1.as_ref();
-            // for (distance, cdn_ip) in &sorted_cdn_servers {
-            //     if (self.cdn_server.get(cdn_ip).unwrap().available) {
-            //         // Get the closest CDN server that is available
-            //         closest_cdn_server = cdn_ip;
-            //         // Set the CDN server to unavailable
-            //         self.cdn_server.get_mut(cdn_ip).unwrap().available = false;
-            //         self.available_cdn_count -= 1;
-            //         break;
-            //     }
-            // }
+
             dbg!(&sorted_cdn_servers);
 
-            // let ans = self.generate_response(&dns_question, closest_cdn_server);
-            // Send the response to the client
             self.socket.send_to(&ans, &client_address).unwrap();
         }
     }
@@ -347,14 +323,14 @@ impl DnsServer {
                 continue;
             }
 
-            let cache = self.cache.lock().await;
-            let cache_set = cache.get(cdn_ip).unwrap().clone();
-            drop(cache);
+            // let cache = self.cache.lock().await;
+            // let cache_set = cache.get(cdn_ip).unwrap().clone();
+            // drop(cache);
 
-            let mut distance = *client_to_server.get(cdn_ip).unwrap();
-            if !cache_set.contains(content) {
-                distance += *self.distance_to_origin.get(cdn_ip).unwrap();
-            }
+            let distance = *client_to_server.get(cdn_ip).unwrap();
+            // if !cache_set.contains(content) {
+            //     distance += *self.distance_to_origin.get(cdn_ip).unwrap();
+            // }
 
             cdn_servers.push((distance, cdn_ip.to_string()));
         }
@@ -474,11 +450,11 @@ impl DnsServer {
         response
     }
 
-    pub async fn get_cache(domain: String, port: String) -> Result<String, ()> {
+    pub async fn get_usage(domain: String, port: String) -> Result<String, ()> {
         let client = reqwest::Client::new();
 
         match client
-            .get(&format!("http://{}:{}/api/getCache", domain, port))
+            .get(&format!("http://{}:{}/api/getUsage", domain, port))
             .send()
             .await
         {

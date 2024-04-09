@@ -61,9 +61,9 @@ async fn serve_content(req: HttpRequest, state: web::Data<AppState>) -> impl Res
     }
 }
 
-#[get("/api/getCache")]
-async fn get_cache() -> impl Responder {
-    let mut cur_cache = CACHE.lock().await.get_cache().join(" ");
+#[get("/api/getUsage")]
+async fn get_usage() -> impl Responder {
+    // let mut cur_cache = CACHE.lock().await.get_cache().join(" ");
 
     let mut sys = System::new();
     sys.refresh_cpu();
@@ -79,11 +79,9 @@ async fn get_cache() -> impl Responder {
         cnt += 1_f32;
     }
 
-    dbg!(&usage, &cnt);
     usage = usage / cnt;
-    cur_cache.push_str(&format!(" {}", usage));
 
-    HttpResponse::Ok().body(cur_cache)
+    HttpResponse::Ok().body(format!("{}", usage))
 }
 
 #[get("/grading/beacon")]
@@ -102,7 +100,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(app_state.clone())
             .service(respond_beacon)
             .service(serve_content)
-            .service(get_cache)
+            .service(get_usage)
     })
     .keep_alive(Duration::from_secs(25))
     .bind(("0.0.0.0", cli.port))?
