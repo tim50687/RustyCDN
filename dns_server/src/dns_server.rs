@@ -4,7 +4,6 @@ use dns_message_parser::{Dns, Flags, Opcode, RCode};
 use geoutils::Location;
 use ipgeolocate::{GeoError, Locator, Service};
 use std::collections::{HashMap, HashSet};
-use std::hash::Hash;
 use std::net::Ipv4Addr;
 use std::net::UdpSocket;
 use std::sync::Arc;
@@ -13,8 +12,6 @@ use tokio::sync::Mutex;
 pub struct DnsServer {
     // Hashmap to store the CDN IP address and information
     cdn_server: HashMap<String, CdnServerInfo>,
-    // Number of available CDN servers
-    available_cdn_count: i32,
     // UDP socket
     socket: UdpSocket,
     cache: Arc<Mutex<HashMap<String, HashSet<String>>>>,
@@ -45,7 +42,6 @@ impl DnsServer {
 
         let dns_server = DnsServer {
             cdn_server: HashMap::new(),
-            available_cdn_count: 7,
             socket: UdpSocket::bind(format!("0.0.0.0:{port}")).unwrap(), // bind to 0.0.0.0 so that it can listen on all available ip addresses on the machine
             cache: Arc::new(Mutex::new(HashMap::new())),
             cpu_usage: Arc::new(Mutex::new(HashMap::new())),
@@ -207,14 +203,6 @@ impl DnsServer {
         }
 
         loop {
-            // If already send all the IP once -> set all to false
-            // if (self.available_cdn_count == 0) {
-            //     for (cdn_ip, cdn_info) in self.cdn_server.iter_mut() {
-            //         cdn_info.available = true;
-            //     }
-            //     self.available_cdn_count = 7;
-            // }
-
             // Read the message from the udp socket
             let (client_address, dns_question) = self.get_question_domain_name();
             // String of client address, for sending response
@@ -370,12 +358,6 @@ impl DnsServer {
 
             cdn_servers.push((distance, cdn_ip.to_string()));
         }
-
-        // if cdn_servers.is_empty() {
-        //     cdn_servers.push((0_f64, "192.53.123.145".to_string()))
-        // } else {
-        //     cdn_servers.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
-        // }
 
         cdn_servers.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
 
