@@ -3,11 +3,13 @@ mod util;
 use actix_web::{get, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use awc::http::StatusCode;
 use clap::Parser;
-use std::sync::Arc;
+use std::{sync::Arc, thread::sleep};
 use std::time::Duration;
 use tokio::sync::Mutex;
 use util::cache_system::CacheSystem;
 use util::cl_parser::Cli;
+use std::thread;
+use sysinfo::System;
 
 #[macro_use]
 extern crate lazy_static;
@@ -61,7 +63,25 @@ async fn serve_content(req: HttpRequest, state: web::Data<AppState>) -> impl Res
 
 #[get("/api/getCache")]
 async fn get_cache() -> impl Responder {
-    let cur_cache = CACHE.lock().await.get_cache().join(" ");
+    let mut cur_cache = CACHE.lock().await.get_cache().join(" ");
+
+    let mut sys = System::new();
+    sys.refresh_cpu();
+
+    std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL);
+
+    sys.refresh_cpu();
+
+    let mut usage = 0_f32;
+    let mut cnt = 0_f32;
+    for cpu in sys.cpus() {
+        usage += cpu.cpu_usage();
+        cnt += 1_f32;
+    }
+
+    dbg!(&usage, &cnt);
+    usage = usage / cnt;
+    cur_cache.push_str(&format!(" {}", usage));
 
     HttpResponse::Ok().body(cur_cache)
 }
@@ -86,6 +106,7 @@ async fn main() -> std::io::Result<()> {
     })
     .keep_alive(Duration::from_secs(25))
     .bind(("0.0.0.0", cli.port))?
+    .bind(("0.0.0.0", cli.port + 1))?
     .run()
     .await
 }
