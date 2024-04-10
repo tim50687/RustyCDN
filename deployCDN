@@ -19,12 +19,13 @@ args = parser.parse_args()
 with open('httpservers.txt', 'r') as r_file:
     for line in r_file:
         domain = line.split()[0]
-        # print(domain)
         process = subprocess.Popen(['ssh', '-i', './keys/ssh-ed25519-lee.chih-.priv', f'{args.username}@{domain}'], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
         process.communicate(b'mkdir app')
         subprocess.run(['scp', '-i', args.keyfile, './httpserver', f'{args.username}@{domain}:app/httpserver'])
+        print(f"------Successfully deploy executable on {domain}")
 
 # For DNS server
 process = subprocess.Popen(['ssh', '-i', './keys/ssh-ed25519-lee.chih-.priv', f'{args.username}@cdn-dns.khoury.northeastern.edu'], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
 process.communicate(b'mkdir app')
 subprocess.run(['scp', '-i', args.keyfile, './dnsserver', f'{args.username}@cdn-dns.khoury.northeastern.edu:app/dnsserver'])
+print("------Successfully deploy DNS server")
