@@ -19,7 +19,9 @@ with open('httpservers.txt', 'r') as r_file:
         domain = line.split()[0]
         process = subprocess.Popen(['ssh', '-i', args.keyfile, f'{args.username}@{domain}'], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
         process.communicate(b'screen -ls | grep \'(Detached)\' | awk \'{print $1}\' | xargs -I % -t screen -X -S % quit')
+        print(f"------Successfully stop {domain}")
 
 
 process = subprocess.Popen(['ssh', '-i', './keys/ssh-ed25519-lee.chih-.priv', f'{args.username}@cdn-dns.khoury.northeastern.edu'], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
 process.communicate(b'screen -ls | grep \'(Detached)\' | awk \'{print $1}\' | xargs -I % -t screen -X -S % quit')
+print("------Successfully stop DNS server")

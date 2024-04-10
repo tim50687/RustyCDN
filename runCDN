@@ -19,6 +19,8 @@ with open('httpservers.txt', 'r') as r_file:
         domain = line.split()[0]
         process = subprocess.Popen(['ssh', '-i', args.keyfile, f'{args.username}@{domain}'], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
         process.communicate(f'screen -dm ./app/httpserver -p {args.port} -o {args.origin}'.encode('utf-8'))
+        print(f"------HTTP server on {domain} is now online")
 
 process = subprocess.Popen(['ssh', '-i', './keys/ssh-ed25519-lee.chih-.priv', f'{args.username}@cdn-dns.khoury.northeastern.edu'], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
 process.communicate(f'screen -dm ./app/dnsserver -p {args.port} -n cs5700cdn.example.com'.encode('utf-8'))
+print(f"------DNS server is now online")
