@@ -3,7 +3,7 @@ use dns_message_parser::rr::{A, RR};
 use dns_message_parser::{Dns, Flags, Opcode, RCode};
 use geoutils::Location;
 use ipgeolocate::{GeoError, Locator, Service};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::net::Ipv4Addr;
 use std::net::UdpSocket;
 use std::sync::Arc;
