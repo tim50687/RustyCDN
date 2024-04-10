@@ -9,7 +9,6 @@ use std::net::UdpSocket;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-
 pub struct DnsServer {
     // Hashmap to store the CDN IP address and information
     cdn_server: HashMap<String, CdnServerInfo>,
@@ -20,7 +19,7 @@ pub struct DnsServer {
     cdn_port: String,
     client_distance_cache: Arc<Mutex<HashMap<String, HashMap<String, f64>>>>,
     availability: Arc<Mutex<HashMap<String, bool>>>,
-    location: Location
+    location: Location,
 }
 
 #[derive(Clone)]
@@ -161,7 +160,8 @@ impl DnsServer {
                             );
                             drop(cpu_usage);
                         }
-                        Err(_) => { // Http server didn't respond
+                        Err(_) => {
+                            // Http server didn't respond
                             let mut availability = availability_ptr.lock().await;
                             let handle = availability.get_mut(&copy_ip).unwrap();
                             *handle = false;
@@ -263,28 +263,28 @@ impl DnsServer {
         content: &str,
     ) -> Vec<(f64, String)> {
         let mut cdn_servers = vec![];
-        // Get client ip geolocation
-        let mut client_ip_geolocation = self.location.clone();
-
-        // Get the GEO location of client
-        match self.get_geolocation(client_ip).await {
-            Ok(client_ip_geolocator) => {
-                client_ip_geolocation = Location::new(
-                    client_ip_geolocator.latitude.parse::<f64>().unwrap(),
-                    client_ip_geolocator.longitude.parse::<f64>().unwrap(),
-                );
-            }
-            Err(_) => {}
-        }
-
         let mut client_to_server: HashMap<String, f64> = HashMap::new();
-
         let mut d_cache = self.client_distance_cache.lock().await;
 
         // If client cache exist, use it
         if d_cache.contains_key(client_ip) {
             client_to_server = d_cache.get(client_ip).unwrap().clone();
         } else { // If client cache doesn't exist, create calculate the distance
+
+            // Get client ip geolocation
+            let mut client_ip_geolocation = self.location.clone();
+
+            // Get the GEO location of client
+            match self.get_geolocation(client_ip).await {
+                Ok(client_ip_geolocator) => {
+                    client_ip_geolocation = Location::new(
+                        client_ip_geolocator.latitude.parse::<f64>().unwrap(),
+                        client_ip_geolocator.longitude.parse::<f64>().unwrap(),
+                    );
+                }
+                Err(_) => {}
+            }
+
             for cdn_ip in self.cdn_server.keys() {
                 let distance = self
                     .get_distance_from_ip(
