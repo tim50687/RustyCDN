@@ -22,3 +22,34 @@ We developed a Content Delivery Network (CDN) called RustyCDN to speed up websit
 - **HTTP Server (`httpserver`):** For caching, we employ two hash maps to track seen content and its request frequency. We also use `gzip` compression to allow more content to fit in the cache.
   
 - **Deployment and Management Scripts:** Due to difficulties compiling our Rust code on remote servers, we compile locally, then transfer and run the compiled code on the remote servers.
+
+## Deployment Commands
+
+To address the compilation challenges on remote servers, we compile the code in advance and place the executable files in the root directory. Executable files (`dnsserver` and `httpserver`) are provided in the root directory.
+
+When you first log in to the remote server, you may need to respond `yes` to the fingerprint verification prompt in the terminal.
+
+- **Deploy CDN**:
+  The deployCDN script will simply copy the executable to the remote server.
+  ```
+  ./deployCDN [-p port] [-o origin] [-n name] [-u username] [-i keyfile]
+  ```
+  - For the `origin`, use `cs5700cdnorigin.ccs.neu.edu` without adding `:8080/`.  
+  - Key file location: `./keys/ssh-ed25519-lee.chih-.priv`  
+  - username: `lee.chih-`
+
+- **Run CDN**: 
+  ```
+  ./runCDN [-p port] [-o origin] [-n name] [-u username] [-i keyfile]
+  ```
+  - For the `origin`, use `cs5700cdnorigin.ccs.neu.edu` without adding `:8080/`.  
+  - Key file location: `./keys/ssh-ed25519-lee.chih-.priv`  
+  - username: `lee.chih-`
+
+- **Stop CDN**: 
+  ```
+  ./stopCDN [-p port] [-o origin] [-n name] [-u username] [-i keyfile]
+  ```
+  - For the `origin`, use `cs5700cdnorigin.ccs.neu.edu` without adding `:8080/`.  
+  - Key file location: `./keys/ssh-ed25519-lee.chih-.priv`  
+  - username: `lee.chih-`

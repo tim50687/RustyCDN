@@ -9,6 +9,8 @@ use std::net::UdpSocket;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+
+// Define the DnsServer struct
 pub struct DnsServer {
     // Hashmap to store the CDN IP address and information
     cdn_server: HashMap<String, CdnServerInfo>,
@@ -16,12 +18,17 @@ pub struct DnsServer {
     socket: UdpSocket,
     // cache: Arc<Mutex<HashMap<String, HashSet<String>>>>,
     cpu_usage: Arc<Mutex<HashMap<String, f32>>>,
-    cdn_port: String,
+    // Port number of the DNS server
+    dns_port: String,
+    // Cache to store the distance between the seend client and the CDN servers
     client_distance_cache: Arc<Mutex<HashMap<String, HashMap<String, f64>>>>,
+    // Cache to store the availability of the HTTP servers
     availability: Arc<Mutex<HashMap<String, bool>>>,
-    location: Location,
+    // Location of the DNS server
+    location: Location
 }
 
+// Define the CdnServerInfo struct
 #[derive(Clone)]
 struct CdnServerInfo {
     domain_name: String,
@@ -45,7 +52,7 @@ impl DnsServer {
             socket: UdpSocket::bind(format!("0.0.0.0:{port}")).unwrap(), // bind to 0.0.0.0 so that it can listen on all available ip addresses on the machine
             // cache: Arc::new(Mutex::new(HashMap::new())),
             cpu_usage: Arc::new(Mutex::new(HashMap::new())),
-            cdn_port: port.to_string(),
+            dns_port: port.to_string(),
             client_distance_cache: Arc::new(Mutex::new(HashMap::new())),
             availability: Arc::new(Mutex::new(availability)),
             location: Location::new(40.8229, -74.4592),
@@ -129,7 +136,7 @@ impl DnsServer {
         for (ip, cdn_server) in self.cdn_server.iter() {
             // let cache_ptr = Arc::clone(&self.cache);
             let cpu_usage_ptr = Arc::clone(&self.cpu_usage);
-            let port = self.cdn_port.clone();
+            let port = self.dns_port.clone();
             let domain = cdn_server.domain_name.clone();
             let copy_ip = ip.to_string();
             let availability_ptr = Arc::clone(&self.availability);
@@ -169,7 +176,7 @@ impl DnsServer {
                         }
                     }
 
-                    // Slppe for 5 seconds
+                    // Sleep for 5 seconds
                     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
                 }
             });
@@ -209,12 +216,13 @@ impl DnsServer {
         }
     }
 
+    // This function is used to clone the DnsServer struct
     pub fn clone(&self) -> Self {
         let cloned = DnsServer {
             cdn_server: self.cdn_server.clone(),
             socket: self.socket.try_clone().unwrap(),
             cpu_usage: Arc::clone(&self.cpu_usage),
-            cdn_port: self.cdn_port.clone(),
+            dns_port: self.dns_port.clone(),
             client_distance_cache: Arc::clone(&self.client_distance_cache),
             availability: Arc::clone(&self.availability),
             location: Location::new(40.8229, -74.4592),
