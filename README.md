@@ -27,8 +27,6 @@ We developed a Content Delivery Network (CDN) called RustyCDN to speed up websit
 
 To address the compilation challenges on remote servers, we compile the code in advance and place the executable files in the root directory. Executable files (`dnsserver` and `httpserver`) are provided in the root directory.
 
-For the `origin`, use `cs5700cdnorigin.ccs.neu.edu` without adding `:8080/`.
-
 When you first log in to the remote server, you may need to respond `yes` to the fingerprint verification prompt in the terminal.
 
 - **Deploy CDN**:
@@ -36,16 +34,22 @@ When you first log in to the remote server, you may need to respond `yes` to the
   ```
   ./deployCDN [-p port] [-o origin] [-n name] [-u username] [-i keyfile]
   ```
-  Key file location: `./keys/ssh-ed25519-lee.chih-.priv`
+  - For the `origin`, use `cs5700cdnorigin.ccs.neu.edu` without adding `:8080/`.  
+  - Key file location: `./keys/ssh-ed25519-lee.chih-.priv`  
+  - username: `lee.chih-`
 
 - **Run CDN**: 
   ```
   ./runCDN [-p port] [-o origin] [-n name] [-u username] [-i keyfile]
   ```
-  Key file location: `./keys/ssh-ed25519-lee.chih-.priv`
+  - For the `origin`, use `cs5700cdnorigin.ccs.neu.edu` without adding `:8080/`.  
+  - Key file location: `./keys/ssh-ed25519-lee.chih-.priv`  
+  - username: `lee.chih-`
 
 - **Stop CDN**: 
   ```
   ./stopCDN [-p port] [-o origin] [-n name] [-u username] [-i keyfile]
   ```
-  Key file location: `./keys/ssh-ed25519-lee.chih-.priv`
+  - For the `origin`, use `cs5700cdnorigin.ccs.neu.edu` without adding `:8080/`.  
+  - Key file location: `./keys/ssh-ed25519-lee.chih-.priv`  
+  - username: `lee.chih-`
