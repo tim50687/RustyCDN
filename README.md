@@ -31,16 +31,16 @@ To address the compilation challenges on remote servers, we compile the code in 
   ```
   ./deployCDN [-p port] [-o origin] [-n name] [-u username] [-i keyfile]
   ```
-  Key file location: `./httpservers.txt`
+  Key file location: `./keys/ssh-ed25519-lee.chih-.priv`
 
 - **Run CDN**: 
   ```
   ./runCDN [-p port] [-o origin] [-n name] [-u username] [-i keyfile]
   ```
-  Key file location: `./httpservers.txt`
+  Key file location: `./keys/ssh-ed25519-lee.chih-.priv`
 
 - **Stop CDN**: 
   ```
   ./stopCDN [-p port] [-o origin] [-n name] [-u username] [-i keyfile]
   ```
-  Key file location: `./httpservers.txt`
+  Key file location: `./keys/ssh-ed25519-lee.chih-.priv`
