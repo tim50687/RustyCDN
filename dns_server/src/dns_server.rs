@@ -9,6 +9,7 @@ use std::net::UdpSocket;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+
 pub struct DnsServer {
     // Hashmap to store the CDN IP address and information
     cdn_server: HashMap<String, CdnServerInfo>,
@@ -17,12 +18,12 @@ pub struct DnsServer {
     // cache: Arc<Mutex<HashMap<String, HashSet<String>>>>,
     cpu_usage: Arc<Mutex<HashMap<String, f32>>>,
     cdn_port: String,
-    distance_to_origin: HashMap<String, f64>,
-    client_distance_cache: HashMap<String, HashMap<String, f64>>,
+    client_distance_cache: Arc<Mutex<HashMap<String, HashMap<String, f64>>>>,
     availability: Arc<Mutex<HashMap<String, bool>>>,
-    location: Location,
+    location: Location
 }
 
+#[derive(Clone)]
 struct CdnServerInfo {
     domain_name: String,
     geolocation: Location,
@@ -46,8 +47,7 @@ impl DnsServer {
             // cache: Arc::new(Mutex::new(HashMap::new())),
             cpu_usage: Arc::new(Mutex::new(HashMap::new())),
             cdn_port: port.to_string(),
-            distance_to_origin: HashMap::new(),
-            client_distance_cache: HashMap::new(),
+            client_distance_cache: Arc::new(Mutex::new(HashMap::new())),
             availability: Arc::new(Mutex::new(availability)),
             location: Location::new(40.8229, -74.4592),
         };
@@ -66,8 +66,6 @@ impl DnsServer {
             },
         ); // cdn-http3.khoury.northeastern.edu
         cpu.insert("45.33.55.171".to_string(), 0_f32);
-        self.distance_to_origin
-            .insert("45.33.55.171".to_string(), 4320779.177);
 
         self.cdn_server.insert(
             "170.187.142.220".to_string(),
@@ -77,8 +75,6 @@ impl DnsServer {
             },
         ); // cdn-http4.khoury.northeastern.edu
         cpu.insert("170.187.142.220".to_string(), 0_f32);
-        self.distance_to_origin
-            .insert("170.187.142.220".to_string(), 1511283.111);
 
         self.cdn_server.insert(
             "213.168.249.157".to_string(),
@@ -88,8 +84,6 @@ impl DnsServer {
             },
         ); // cdn-http7.khoury.northeastern.edu
         cpu.insert("213.168.249.157".to_string(), 0_f32);
-        self.distance_to_origin
-            .insert("213.168.249.157".to_string(), 5275439.248);
 
         self.cdn_server.insert(
             "139.162.82.207".to_string(),
@@ -99,8 +93,6 @@ impl DnsServer {
             },
         ); // cdn-http11.khoury.northeastern.edu
         cpu.insert("139.162.82.207".to_string(), 0_f32);
-        self.distance_to_origin
-            .insert("139.162.82.207".to_string(), 10812481.474);
 
         self.cdn_server.insert(
             "45.79.124.209".to_string(),
@@ -110,8 +102,6 @@ impl DnsServer {
             },
         ); // cdn-http14.khoury.northeastern.edu
         cpu.insert("45.79.124.209".to_string(), 0_f32);
-        self.distance_to_origin
-            .insert("45.79.124.209".to_string(), 12261839.872);
 
         self.cdn_server.insert(
             "192.53.123.145".to_string(),
@@ -121,8 +111,6 @@ impl DnsServer {
             },
         ); // cdn-http15.khoury.northeastern.edu
         cpu.insert("192.53.123.145".to_string(), 0_f32);
-        self.distance_to_origin
-            .insert("192.53.123.145".to_string(), 696856.872);
 
         self.cdn_server.insert(
             "192.46.221.203".to_string(),
@@ -132,8 +120,6 @@ impl DnsServer {
             },
         ); // cdn-http16.khoury.northeastern.edu
         cpu.insert("192.46.221.203".to_string(), 0_f32);
-        self.distance_to_origin
-            .insert("192.46.221.203".to_string(), 16241736.48);
     }
 
     // This function will start the DNS server
@@ -149,15 +135,18 @@ impl DnsServer {
             let copy_ip = ip.to_string();
             let availability_ptr = Arc::clone(&self.availability);
 
+            // Spawn worker thread to probe each HTTP server every 5 second
             tokio::spawn(async move {
                 loop {
                     match DnsServer::get_usage(domain.clone(), port.clone()).await {
                         Ok(res) => {
+                            // Update the availability of the HTTP server
                             let mut availability = availability_ptr.lock().await;
                             let handle = availability.get_mut(&copy_ip).unwrap();
                             *handle = true;
                             drop(availability);
 
+                            // Update the cpu usage of the HTTP server
                             let mut cpu_usage = cpu_usage_ptr.lock().await;
                             let old_usage = match cpu_usage.get(&copy_ip) {
                                 Some(x) => *x,
@@ -172,7 +161,7 @@ impl DnsServer {
                             );
                             drop(cpu_usage);
                         }
-                        Err(_) => {
+                        Err(_) => { // Http server didn't respond
                             let mut availability = availability_ptr.lock().await;
                             let handle = availability.get_mut(&copy_ip).unwrap();
                             *handle = false;
@@ -180,13 +169,8 @@ impl DnsServer {
                         }
                     }
 
-                    let test_usage = cpu_usage_ptr.lock().await;
-
-                    let test = *test_usage.get(&copy_ip).unwrap();
-                    drop(test_usage);
-                    dbg!(test, &domain);
-
-                    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                    // Slppe for 5 seconds
+                    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
                 }
             });
         }
@@ -194,31 +178,50 @@ impl DnsServer {
         loop {
             // Read the message from the udp socket
             let (client_address, dns_question) = self.get_question_domain_name();
-            // String of client address, for sending response
-            let client_address_str = client_address.to_string();
-            // Remove port number from the source address
-            let client_ip = client_address_str.split(":").collect::<Vec<&str>>()[0];
 
-            // Get the sorted list of CDN servers based on the distance from the client
-            let sorted_cdn_servers = self.get_sorted_cdn_servers(&client_ip, " ").await;
+            let mut cloned = self.clone();
 
-            let ans;
+            // Spawn worker thread to respond the dig request
+            tokio::spawn(async move {
+                // String of client address, for sending response
+                let client_address_str = client_address.to_string();
+                // Remove port number from the source address
+                let client_ip = client_address_str.split(":").collect::<Vec<&str>>()[0];
+                let sorted_cdn_servers = cloned.get_sorted_cdn_servers(&client_ip, " ").await;
+                let ans;
 
-            if sorted_cdn_servers.is_empty() {
-                ans = self.generate_response_when_all_cdnservers_down(
-                    &dns_question,
-                    "3.129.217.143",
-                    "ec2-3-129-217-143.us-east-2.compute.amazonaws.com",
-                )
-            } else {
-                let mut closest_cdn_server: &str = sorted_cdn_servers[0].1.as_ref();
-                ans = self.generate_response(&dns_question, closest_cdn_server);
-            }
+                // When all the HTTP servers are down, route the client to my AWS ec2 instance
+                if sorted_cdn_servers.is_empty() {
+                    ans = cloned.generate_response_when_all_cdnservers_down(
+                        &dns_question,
+                        "3.129.217.143",
+                        "ec2-3-129-217-143.us-east-2.compute.amazonaws.com",
+                    )
+                } else {
+                    let closest_cdn_server: &str = sorted_cdn_servers[0].1.as_ref();
+                    ans = cloned.generate_response(&dns_question, closest_cdn_server);
+                }
 
-            dbg!(&sorted_cdn_servers);
+                dbg!(&sorted_cdn_servers);
+                dbg!(&client_address);
 
-            self.socket.send_to(&ans, &client_address).unwrap();
+                cloned.socket.send_to(&ans, &client_address).unwrap();
+            });
         }
+    }
+
+    pub fn clone(&self) -> Self {
+        let cloned = DnsServer {
+            cdn_server: self.cdn_server.clone(),
+            socket: self.socket.try_clone().unwrap(),
+            cpu_usage: Arc::clone(&self.cpu_usage),
+            cdn_port: self.cdn_port.clone(),
+            client_distance_cache: Arc::clone(&self.client_distance_cache),
+            availability: Arc::clone(&self.availability),
+            location: Location::new(40.8229, -74.4592),
+        };
+
+        cloned
     }
 
     // This function will read from the request and get the dns question and src ip
@@ -226,19 +229,12 @@ impl DnsServer {
         // Read the message from the udp socket
         let mut buf = [0; 1024];
         let (amt, src) = self.socket.recv_from(&mut buf).unwrap();
-        // // Use dns parser to decode the message
+        // Use dns parser to decode the message
         let bytes = Bytes::copy_from_slice(&buf[..amt]);
         let dns = Dns::decode(bytes).unwrap();
-        // Get the domain name of the dns question
-        // let domain_name = &dns.questions[0].domain_name.to_string();
-        // println!("domain_name: {:?}", domain_name);
-        // // Read until second to the last character to remove the last dot
-        // let domain_name = &domain_name[..domain_name.len() - 1];
+
         let q = dns.questions.clone();
         println!("Received request for domain: {:?}", q[q.len() - 1]);
-        // println!("Received request from: {:?}", src);
-
-        // println!("Received request from: {:?}", src);
         (src.to_string(), dns)
     }
 
@@ -289,8 +285,10 @@ impl DnsServer {
 
         let mut client_to_server: HashMap<String, f64> = HashMap::new();
 
-        if self.client_distance_cache.contains_key(client_ip) {
-            client_to_server = self.client_distance_cache.get(client_ip).unwrap().clone();
+        let mut d_cache = self.client_distance_cache.lock().await;
+
+        if d_cache.contains_key(client_ip) {
+            client_to_server = d_cache.get(client_ip).unwrap().clone();
         } else {
             for cdn_ip in self.cdn_server.keys() {
                 let distance = self
@@ -301,10 +299,9 @@ impl DnsServer {
                     .await;
                 client_to_server.insert(cdn_ip.clone(), distance);
             }
-
-            self.client_distance_cache
-                .insert(client_ip.to_string(), client_to_server.clone());
+            d_cache.insert(client_ip.to_string(), client_to_server.clone());
         }
+        drop(d_cache);
 
         // Get the distance from the client to each CDN server
         for (cdn_ip, _) in self.cdn_server.iter() {
@@ -323,15 +320,7 @@ impl DnsServer {
                 continue;
             }
 
-            // let cache = self.cache.lock().await;
-            // let cache_set = cache.get(cdn_ip).unwrap().clone();
-            // drop(cache);
-
             let distance = *client_to_server.get(cdn_ip).unwrap();
-            // if !cache_set.contains(content) {
-            //     distance += *self.distance_to_origin.get(cdn_ip).unwrap();
-            // }
-
             cdn_servers.push((distance, cdn_ip.to_string()));
         }
 

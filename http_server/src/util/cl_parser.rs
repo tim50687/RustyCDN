@@ -3,6 +3,7 @@ use clap::Parser;
 #[derive(Parser, Debug)]
 #[command(version, long_about = None)]
 
+// Command line parser
 pub struct Cli {
     /// Port number that this HTTP server is binded to
     #[arg(short, default_value_t = 80, value_parser = check_port)]
@@ -13,6 +14,7 @@ pub struct Cli {
     pub origin: String,
 }
 
+// This funtion is used to check if the given port number is valid.
 fn check_port(s: &str) -> Result<u16, String> {
     let port: usize = s.parse().map_err(|_| format!("{s} isn't a port number "))?;
 
@@ -22,16 +24,3 @@ fn check_port(s: &str) -> Result<u16, String> {
         Ok(port as u16)
     }
 }
-
-// fn check_origin(s: &str) -> Result<String, String> {
-//     let client = awc::Client::default();
-//     let response = client
-//         .get(format!(
-//             "http://cs5700cdnorigin.ccs.neu.edu:8080/{}",
-//             content_path
-//         )) // <- Create request builder
-//         .insert_header(("Accept-Encoding", "gzip"))
-//         .insert_header(("User-Agent", "Actix-web"))
-//         .send() // <- Send http request
-//         .await;
-// }
