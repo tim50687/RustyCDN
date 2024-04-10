@@ -27,7 +27,8 @@ We developed a Content Delivery Network (CDN) called RustyCDN to speed up websit
 
 To address the compilation challenges on remote servers, we compile the code in advance and place the executable files in the root directory. Executable files (`dnsserver` and `httpserver`) are provided in the root directory.
 
-- **Deploy CDN**: 
+- **Deploy CDN**:
+  The deployCDN script will simply copy the executable to the remote server.
   ```
   ./deployCDN [-p port] [-o origin] [-n name] [-u username] [-i keyfile]
   ```
