@@ -18,7 +18,6 @@ pub struct DnsServer {
     // cache: Arc<Mutex<HashMap<String, HashSet<String>>>>,
     cpu_usage: Arc<Mutex<HashMap<String, f32>>>,
     cdn_port: String,
-    distance_to_origin: HashMap<String, f64>,
     client_distance_cache: Arc<Mutex<HashMap<String, HashMap<String, f64>>>>,
     availability: Arc<Mutex<HashMap<String, bool>>>,
     location: Location
@@ -48,7 +47,6 @@ impl DnsServer {
             // cache: Arc::new(Mutex::new(HashMap::new())),
             cpu_usage: Arc::new(Mutex::new(HashMap::new())),
             cdn_port: port.to_string(),
-            distance_to_origin: HashMap::new(),
             client_distance_cache: Arc::new(Mutex::new(HashMap::new())),
             availability: Arc::new(Mutex::new(availability)),
             location: Location::new(40.8229, -74.4592),
@@ -68,8 +66,6 @@ impl DnsServer {
             },
         ); // cdn-http3.khoury.northeastern.edu
         cpu.insert("45.33.55.171".to_string(), 0_f32);
-        self.distance_to_origin
-            .insert("45.33.55.171".to_string(), 4320779.177);
 
         self.cdn_server.insert(
             "170.187.142.220".to_string(),
@@ -79,8 +75,6 @@ impl DnsServer {
             },
         ); // cdn-http4.khoury.northeastern.edu
         cpu.insert("170.187.142.220".to_string(), 0_f32);
-        self.distance_to_origin
-            .insert("170.187.142.220".to_string(), 1511283.111);
 
         self.cdn_server.insert(
             "213.168.249.157".to_string(),
@@ -90,8 +84,6 @@ impl DnsServer {
             },
         ); // cdn-http7.khoury.northeastern.edu
         cpu.insert("213.168.249.157".to_string(), 0_f32);
-        self.distance_to_origin
-            .insert("213.168.249.157".to_string(), 5275439.248);
 
         self.cdn_server.insert(
             "139.162.82.207".to_string(),
@@ -101,8 +93,6 @@ impl DnsServer {
             },
         ); // cdn-http11.khoury.northeastern.edu
         cpu.insert("139.162.82.207".to_string(), 0_f32);
-        self.distance_to_origin
-            .insert("139.162.82.207".to_string(), 10812481.474);
 
         self.cdn_server.insert(
             "45.79.124.209".to_string(),
@@ -112,8 +102,6 @@ impl DnsServer {
             },
         ); // cdn-http14.khoury.northeastern.edu
         cpu.insert("45.79.124.209".to_string(), 0_f32);
-        self.distance_to_origin
-            .insert("45.79.124.209".to_string(), 12261839.872);
 
         self.cdn_server.insert(
             "192.53.123.145".to_string(),
@@ -123,8 +111,6 @@ impl DnsServer {
             },
         ); // cdn-http15.khoury.northeastern.edu
         cpu.insert("192.53.123.145".to_string(), 0_f32);
-        self.distance_to_origin
-            .insert("192.53.123.145".to_string(), 696856.872);
 
         self.cdn_server.insert(
             "192.46.221.203".to_string(),
@@ -134,8 +120,6 @@ impl DnsServer {
             },
         ); // cdn-http16.khoury.northeastern.edu
         cpu.insert("192.46.221.203".to_string(), 0_f32);
-        self.distance_to_origin
-            .insert("192.46.221.203".to_string(), 16241736.48);
     }
 
     // This function will start the DNS server
@@ -182,12 +166,6 @@ impl DnsServer {
                         }
                     }
 
-                    let test_usage = cpu_usage_ptr.lock().await;
-
-                    let test = *test_usage.get(&copy_ip).unwrap();
-                    drop(test_usage);
-                    // dbg!(test, &domain);
-
                     tokio::time::sleep(tokio::time::Duration::from_secs(20)).await;
                 }
             });
@@ -223,42 +201,15 @@ impl DnsServer {
 
                 cloned.socket.send_to(&ans, &client_address).unwrap();
             });
-
-            // // String of client address, for sending response
-            // let client_address_str = client_address.to_string();
-            // // Remove port number from the source address
-            // let client_ip = client_address_str.split(":").collect::<Vec<&str>>()[0];
-
-            // Get the sorted list of CDN servers based on the distance from the client
-            // let sorted_cdn_servers = self.get_sorted_cdn_servers(&client_ip, " ").await;
-
-            // let ans;
-
-            // if sorted_cdn_servers.is_empty() {
-            //     ans = self.generate_response_when_all_cdnservers_down(
-            //         &dns_question,
-            //         "3.129.217.143",
-            //         "ec2-3-129-217-143.us-east-2.compute.amazonaws.com",
-            //     )
-            // } else {
-            //     let mut closest_cdn_server: &str = sorted_cdn_servers[0].1.as_ref();
-            //     ans = self.generate_response(&dns_question, closest_cdn_server);
-            // }
-
-            // dbg!(&sorted_cdn_servers);
-
-            // self.socket.send_to(&ans, &client_address).unwrap();
         }
     }
 
     pub fn clone(&self) -> Self {
         let cloned = DnsServer {
             cdn_server: self.cdn_server.clone(),
-            socket: self.socket.try_clone().unwrap(), // bind to 0.0.0.0 so that it can listen on all available ip addresses on the machine
-            // cache: Arc::new(Mutex::new(HashMap::new())),
+            socket: self.socket.try_clone().unwrap(),
             cpu_usage: Arc::clone(&self.cpu_usage),
             cdn_port: self.cdn_port.clone(),
-            distance_to_origin: HashMap::new(),
             client_distance_cache: Arc::clone(&self.client_distance_cache),
             availability: Arc::clone(&self.availability),
             location: Location::new(40.8229, -74.4592),
@@ -272,19 +223,12 @@ impl DnsServer {
         // Read the message from the udp socket
         let mut buf = [0; 1024];
         let (amt, src) = self.socket.recv_from(&mut buf).unwrap();
-        // // Use dns parser to decode the message
+        // Use dns parser to decode the message
         let bytes = Bytes::copy_from_slice(&buf[..amt]);
         let dns = Dns::decode(bytes).unwrap();
-        // Get the domain name of the dns question
-        // let domain_name = &dns.questions[0].domain_name.to_string();
-        // println!("domain_name: {:?}", domain_name);
-        // // Read until second to the last character to remove the last dot
-        // let domain_name = &domain_name[..domain_name.len() - 1];
+
         let q = dns.questions.clone();
         println!("Received request for domain: {:?}", q[q.len() - 1]);
-        // println!("Received request from: {:?}", src);
-
-        // println!("Received request from: {:?}", src);
         (src.to_string(), dns)
     }
 
