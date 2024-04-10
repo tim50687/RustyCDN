@@ -202,7 +202,6 @@ impl DnsServer {
                     ans = cloned.generate_response(&dns_question, closest_cdn_server);
                 }
 
-                dbg!(&sorted_cdn_servers);
                 dbg!(&client_address);
 
                 cloned.socket.send_to(&ans, &client_address).unwrap();
@@ -233,8 +232,6 @@ impl DnsServer {
         let bytes = Bytes::copy_from_slice(&buf[..amt]);
         let dns = Dns::decode(bytes).unwrap();
 
-        let q = dns.questions.clone();
-        println!("Received request for domain: {:?}", q[q.len() - 1]);
         (src.to_string(), dns)
     }
 
@@ -255,10 +252,6 @@ impl DnsServer {
 
     // This function is used to get the distance between two IP addresses
     async fn get_distance_from_ip(&self, location: &Location, target_location: &Location) -> f64 {
-        // Calculate the distance between the two IP addresses
-        // let location = Location::new(locator.latitude.parse::<f64>().unwrap(), locator.longitude.parse::<f64>().unwrap());
-        // let target_locator = Location::new(target_locator.latitude.parse::<f64>().unwrap(), target_locator.longitude.parse::<f64>().unwrap());
-
         let distance = location.distance_to(&target_location).unwrap();
         distance.meters()
     }
@@ -273,6 +266,7 @@ impl DnsServer {
         // Get client ip geolocation
         let mut client_ip_geolocation = self.location.clone();
 
+        // Get the GEO location of client
         match self.get_geolocation(client_ip).await {
             Ok(client_ip_geolocator) => {
                 client_ip_geolocation = Location::new(
@@ -287,9 +281,10 @@ impl DnsServer {
 
         let mut d_cache = self.client_distance_cache.lock().await;
 
+        // If client cache exist, use it
         if d_cache.contains_key(client_ip) {
             client_to_server = d_cache.get(client_ip).unwrap().clone();
-        } else {
+        } else { // If client cache doesn't exist, create calculate the distance
             for cdn_ip in self.cdn_server.keys() {
                 let distance = self
                     .get_distance_from_ip(
@@ -305,6 +300,7 @@ impl DnsServer {
 
         // Get the distance from the client to each CDN server
         for (cdn_ip, _) in self.cdn_server.iter() {
+            // Check availability
             let availability = self.availability.lock().await;
             let ava = *availability.get(cdn_ip).unwrap();
             drop(availability);
@@ -312,10 +308,10 @@ impl DnsServer {
                 continue;
             }
 
+            // Check CPU usage
             let cpu_usage = self.cpu_usage.lock().await;
             let usage = *cpu_usage.get(cdn_ip).unwrap();
             drop(cpu_usage);
-
             if usage > 90_f32 {
                 continue;
             }
@@ -412,7 +408,6 @@ impl DnsServer {
         let domain_name = domain_name.to_string().parse().unwrap();
         let mut answer = Vec::new();
         // Turn string into ipv4 address
-        dbg!(&closest_cdn_server);
         let ip_vec = closest_cdn_server
             .split(".")
             .map(|x| x.parse::<u8>().unwrap())
@@ -439,6 +434,7 @@ impl DnsServer {
         response
     }
 
+    // This function is used to probe the HTTP server's CPU usage.
     pub async fn get_usage(domain: String, port: String) -> Result<String, ()> {
         let client = reqwest::Client::new();
 
