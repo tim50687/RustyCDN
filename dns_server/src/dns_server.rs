@@ -135,15 +135,18 @@ impl DnsServer {
             let copy_ip = ip.to_string();
             let availability_ptr = Arc::clone(&self.availability);
 
+            // Spawn worker thread to probe each HTTP server every 5 second
             tokio::spawn(async move {
                 loop {
                     match DnsServer::get_usage(domain.clone(), port.clone()).await {
                         Ok(res) => {
+                            // Update the availability of the HTTP server
                             let mut availability = availability_ptr.lock().await;
                             let handle = availability.get_mut(&copy_ip).unwrap();
                             *handle = true;
                             drop(availability);
 
+                            // Update the cpu usage of the HTTP server
                             let mut cpu_usage = cpu_usage_ptr.lock().await;
                             let old_usage = match cpu_usage.get(&copy_ip) {
                                 Some(x) => *x,
@@ -158,7 +161,7 @@ impl DnsServer {
                             );
                             drop(cpu_usage);
                         }
-                        Err(_) => {
+                        Err(_) => { // Http server didn't respond
                             let mut availability = availability_ptr.lock().await;
                             let handle = availability.get_mut(&copy_ip).unwrap();
                             *handle = false;
@@ -166,7 +169,8 @@ impl DnsServer {
                         }
                     }
 
-                    tokio::time::sleep(tokio::time::Duration::from_secs(20)).await;
+                    // Slppe for 5 seconds
+                    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
                 }
             });
         }
@@ -177,6 +181,7 @@ impl DnsServer {
 
             let mut cloned = self.clone();
 
+            // Spawn worker thread to respond the dig request
             tokio::spawn(async move {
                 // String of client address, for sending response
                 let client_address_str = client_address.to_string();
@@ -185,6 +190,7 @@ impl DnsServer {
                 let sorted_cdn_servers = cloned.get_sorted_cdn_servers(&client_ip, " ").await;
                 let ans;
 
+                // When all the HTTP servers are down, route the client to my AWS ec2 instance
                 if sorted_cdn_servers.is_empty() {
                     ans = cloned.generate_response_when_all_cdnservers_down(
                         &dns_question,
@@ -192,7 +198,7 @@ impl DnsServer {
                         "ec2-3-129-217-143.us-east-2.compute.amazonaws.com",
                     )
                 } else {
-                    let mut closest_cdn_server: &str = sorted_cdn_servers[0].1.as_ref();
+                    let closest_cdn_server: &str = sorted_cdn_servers[0].1.as_ref();
                     ans = cloned.generate_response(&dns_question, closest_cdn_server);
                 }
 
@@ -314,15 +320,7 @@ impl DnsServer {
                 continue;
             }
 
-            // let cache = self.cache.lock().await;
-            // let cache_set = cache.get(cdn_ip).unwrap().clone();
-            // drop(cache);
-
             let distance = *client_to_server.get(cdn_ip).unwrap();
-            // if !cache_set.contains(content) {
-            //     distance += *self.distance_to_origin.get(cdn_ip).unwrap();
-            // }
-
             cdn_servers.push((distance, cdn_ip.to_string()));
         }
 
